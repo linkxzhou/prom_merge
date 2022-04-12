@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/linkxzhou/prom_merge/merge"
+	merge "github.com/linkxzhou/prom_merge/merge"
 	log "github.com/sirupsen/logrus"
 )
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -33,15 +34,17 @@ func main() {
 	go func() {
 		defer wg.Done()
 		recordMetrics()
-		http.Handle("/metrics", promhttp.Handler())
+		http.Handle("/metrics1", promhttp.Handler())
 		http.ListenAndServe(":2112", nil)
+		fmt.Printf("ListenAndServe :2112\n")
 	}()
 
 	go func() {
 		defer wg.Done()
 		recordMetrics()
-		http.Handle("/metrics", promhttp.Handler())
+		http.Handle("/metrics2", promhttp.Handler())
 		http.ListenAndServe(":2113", nil)
+		fmt.Printf("ListenAndServe :2113\n")
 	}()
 
 	wg.Wait()

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"net/http"
+	httpurl "net/url"
 	"os"
 	"strings"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+var config *Config
 
 func NewRootCommand() *cobra.Command {
 	app := new(App)
@@ -44,9 +47,11 @@ func (app *App) Bind(cmd *cobra.Command) {
 	configPath := cmd.PersistentFlags().StringP(
 		"config-path", "c", "",
 		"Path to the configuration file.")
+
 	cobra.OnInitialize(func() {
+		var err error
 		if configPath != nil && *configPath != "" {
-			config, err := ReadConfig(*configPath)
+			config, err = ReadConfig(*configPath)
 			if err != nil {
 				log.WithField("error", err).Errorf("failed to load config file '%s'", *configPath)
 				os.Exit(1)
@@ -68,7 +73,7 @@ func (app *App) Bind(cmd *cobra.Command) {
 	cmd.PersistentFlags().Int(
 		"exporters-timeout", 10,
 		"HTTP client timeout for connecting to exporters. (ENV:MERGER_EXPORTERSTIMEOUT)")
-	app.viper.BindPFlag("exporterstimeout", cmd.PersistentFlags().Lookup("exporters-timeout"))
+	app.viper.BindPFlag("timeout", cmd.PersistentFlags().Lookup("exporters-timeout"))
 
 	cmd.PersistentFlags().BoolP(
 		"verbose", "v", false,
@@ -82,15 +87,26 @@ func (app *App) Bind(cmd *cobra.Command) {
 }
 
 func (app *App) run(cmd *cobra.Command, args []string) {
+	hostList := make(map[string]string, 0)
+	for _, url := range app.viper.GetStringSlice("urls") {
+		if u, err := httpurl.Parse(url); err == nil {
+			hostList[url] = u.Host
+		}
+	}
+	hostAlias := "instance"
+	if config != nil && len(config.HostAlias) > 0 {
+		hostAlias = config.HostAlias
+	}
 	http.Handle("/metrics", Handler{
 		Exporters:            app.viper.GetStringSlice("urls"),
-		ExportersHTTPTimeout: app.viper.GetInt("exporterstimeout"),
+		ExportersHTTPTimeout: app.viper.GetInt("timeout"),
+		ExportersHostList:    hostList,
+		ExportersHostAlias:   hostAlias,
 	})
 
 	port := app.viper.GetInt("port")
 	log.Infof("Starting HTTP server on port %d", port)
-	err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
-	if err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -10,11 +10,12 @@ import (
 )
 
 type Config struct {
-	Exporters []Exporter
+	Exporters []Exporter `yaml:"exporters"`
+	HostAlias string     `yaml:"host_alias"`
 }
 
 type Exporter struct {
-	URL string
+	URL string `yaml:"url"`
 }
 
 func ReadConfig(path string) (*Config, error) {

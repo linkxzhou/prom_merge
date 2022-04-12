@@ -15,6 +15,8 @@ import (
 type Handler struct {
 	Exporters            []string
 	ExportersHTTPTimeout int
+	ExportersHostList    map[string]string
+	ExportersHostAlias   string
 }
 
 func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -55,6 +57,15 @@ func (h Handler) Merge(w io.Writer) {
 				log.WithField("url", u).Errorf("Parse response body to metrics: %v", err)
 				return
 			}
+
+			if host, ok := h.ExportersHostList[u]; ok {
+				for _, mf := range part {
+					for i := 0; i < len(mf.Metric); i++ {
+						mf.Metric[i].Label = append(mf.Metric[i].Label, &prom.LabelPair{Name: &h.ExportersHostAlias, Value: &host})
+					}
+				}
+			}
+
 			responsesMu.Lock()
 			responses = append(responses, part)
 			responsesMu.Unlock()
@@ -65,7 +76,6 @@ func (h Handler) Merge(w io.Writer) {
 
 	for _, part := range responses {
 		for n, mf := range part {
-			log.Debug("Part %v", part)
 			mfo, ok := mfs[n]
 			if ok {
 				mfo.Metric = append(mfo.Metric, mf.Metric...)
@@ -77,7 +87,6 @@ func (h Handler) Merge(w io.Writer) {
 
 	names := []string{}
 	for n := range mfs {
-		log.Debug("mfs n: ", n)
 		names = append(names, n)
 	}
 	sort.Strings(names)

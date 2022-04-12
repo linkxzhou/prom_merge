@@ -1,3 +1,4 @@
 exporters:
-- url: http://localhost:9100/metrics
-- url: http://localhost:9101/metrics
+- url: http://127.0.0.1:2112/metrics1
+- url: http://127.0.0.1:2113/metrics2
+host_alias: host
